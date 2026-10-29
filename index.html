@@ -1945,5 +1945,89 @@ html.noir-app .na-disclaimer{align-items:center;gap:14px}
 html.noir-app{-webkit-text-size-adjust:100%}
 html.noir-app .mo-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 html.noir-app .mo-actions button{display:inline-flex;align-items:center;justify-content:center;text-align:center;font-size:13px!important;min-height:48px;padding:10px 12px;line-height:1.25;text-wrap:balance}
-</style></body>
+</style><!-- LIFE TRAIL · cópia de segurança visível + lembrete + aviso de instalar (Studio Evolution Tech). Colar antes de </body>. Troque regiane pelo id da cliente. -->
+<style id="lt-cs-style">
+.lt-cs-sheet{position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;justify-content:center;background:#05030a99;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+.lt-cs-sheet[hidden]{display:none}
+.lt-cs-box{width:100%;max-width:440px;border-radius:24px;padding:22px 20px 18px;background:linear-gradient(160deg,#2a2236f2,#17121ff2);border:1px solid #ffffff1f;box-shadow:0 20px 60px #0009,inset 0 1px 0 #ffffff1a;color:#f7f1e8;font-family:inherit}
+html:not(.dark) .lt-cs-box{background:linear-gradient(160deg,#fffaf3f5,#f3ebe4f5);color:#362c38;border-color:#9c7c6033}
+.lt-cs-box h3{margin:0 0 6px;font-size:19px;font-weight:600;color:var(--na-gold-bright,#f3d6a4)}
+.lt-cs-box p{margin:0 0 14px;font-size:14px;line-height:1.5;color:var(--na-muted,#c3b9cc)}
+.lt-cs-box .lt-cs-when{font-size:12px;letter-spacing:.3px;margin:-6px 0 14px;color:var(--na-gold,#dfbf88)}
+.lt-cs-btn{display:flex;width:100%;align-items:center;justify-content:center;gap:8px;min-height:48px;margin-top:8px;border-radius:14px;border:1px solid #ffffff26;background:#ffffff0d;color:inherit;font:600 15px/1 inherit;font-family:inherit;cursor:pointer}
+.lt-cs-btn.prim{background:linear-gradient(135deg,var(--na-gold,#dfbf88),var(--na-violet,#b69be8));color:#1b1424;border:0}
+.lt-cs-btn.link{background:none;border:0;min-height:40px;font-weight:500;color:var(--na-muted,#c3b9cc)}
+.lt-cs-steps{margin:0 0 12px;padding-left:20px;font-size:14px;line-height:1.7}
+.lt-cs-steps b{color:var(--na-gold-bright,#f3d6a4)}
+html:not(.dark) .lt-cs-steps b{color:#795024}
+.lt-cs-dot{position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#f2b8c9;box-shadow:0 0 0 2px var(--na-bg,#100e17)}
+#lt-cs-open{position:relative}
+
+html .lt-cs-box .lt-cs-btn{display:flex!important;width:100%!important;min-height:48px!important;padding:0 16px!important;border-radius:14px!important;border:1px solid #ffffff26!important;background:#ffffff0d!important;color:inherit!important;box-shadow:none!important;font-size:15px!important;text-transform:none!important;letter-spacing:0!important}
+html .lt-cs-box .lt-cs-btn.prim{background:linear-gradient(135deg,var(--na-gold,#dfbf88),var(--na-violet,#b69be8))!important;color:#1b1424!important;border:0!important}
+html .lt-cs-box .lt-cs-btn.link{background:none!important;border:0!important;min-height:40px!important;font-weight:500!important;color:var(--na-muted,#c3b9cc)!important}
+html .lt-cs-box svg{width:18px!important;height:18px!important;flex:none}
+html .lt-cs-box .lt-cs-steps{display:block!important;list-style:decimal!important;padding-left:22px!important}
+html .lt-cs-box .lt-cs-steps li{display:list-item!important;list-style:decimal!important}
+html .lt-cs-box .lt-cs-steps svg{width:15px!important;height:15px!important;display:inline!important;vertical-align:-2px}
+html #lt-cs-open svg{width:18px!important;height:18px!important}
+</style>
+<div class="lt-cs-sheet" id="lt-cs-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="lt-cs-title"><div class="lt-cs-box" id="lt-cs-box"></div></div>
+<script id="lt-copia-seguranca">
+(()=>{
+const SLUG='regiane',K_LAST='lifetrail_'+SLUG+'_ultima_copia',K_SNOOZE='lifetrail_'+SLUG+'_lembrete_adiado',K_INST='lifetrail_'+SLUG+'_aviso_instalar';
+const DIAS_LEMBRETE=7,DIA=864e5;
+const g=k=>{try{return localStorage.getItem(k)}catch{return null}},s=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
+const sheet=document.getElementById('lt-cs-sheet'),box=document.getElementById('lt-cs-box');
+const ultima=()=>Number(g(K_LAST))||0;
+const quando=()=>{const t=ultima();if(!t)return 'Você ainda não fez nenhuma cópia.';const d=Math.floor((Date.now()-t)/DIA);return 'Última cópia: '+(d<1?'hoje':d===1?'ontem':'há '+d+' dias')+' ('+new Date(t).toLocaleDateString('pt-BR')+').'};
+const atrasada=()=>Date.now()-ultima()>DIAS_LEMBRETE*DIA&&Date.now()-(Number(g(K_SNOOZE))||0)>2*DIA;
+const ehIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const instalado=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+const ico={nuvem:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5"/><path d="M12 12v8m-3-3 3 3 3-3"/></svg>',share:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px" aria-hidden="true"><path d="M12 3v12m-4-8 4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>'};
+function abrir(html){box.innerHTML=html;sheet.hidden=false;const b=box.querySelector('button');b&&b.focus()}
+function fechar(){sheet.hidden=true}
+sheet.addEventListener('click',e=>{if(e.target===sheet)fechar()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!sheet.hidden)fechar()});
+function copiar(){if(typeof exportTrail!=='function')return;exportTrail();s(K_LAST,String(Date.now()));marcar();fechar()}
+function restaurar(){fechar();const i=document.getElementById('lt-import');if(i)i.click()}
+function telaCopia(lembrete){
+ abrir('<h3 id="lt-cs-title">'+(lembrete?'Hora da cópia de segurança':'Cópia de segurança')+'</h3>'
+ +'<p>'+(lembrete?'Seus dados ficam só neste aparelho. Uma cópia guardada (no Arquivos ou no WhatsApp) protege tudo se o celular for trocado ou o navegador for limpo.':'Guarde uma cópia dos seus dados. Para usar em outro aparelho, abra o app lá e toque em Restaurar.')+'</p>'
+ +'<p class="lt-cs-when">'+quando()+'</p>'
+ +'<button type="button" class="lt-cs-btn prim" data-a="copiar">'+ico.nuvem+' Fazer cópia agora</button>'
+ +(lembrete?'<button type="button" class="lt-cs-btn link" data-a="depois">Lembrar depois</button>':'<button type="button" class="lt-cs-btn" data-a="restaurar">Restaurar uma cópia</button><button type="button" class="lt-cs-btn link" data-a="fechar">Fechar</button>'));
+}
+function telaInstalar(){
+ abrir('<h3 id="lt-cs-title">Coloque o Life Trail na tela de início</h3><p>Assim ele abre como um app, em tela cheia, com um toque.</p>'
+ +'<ol class="lt-cs-steps"><li>Toque em <b>Compartilhar</b> '+ico.share+' na barra do Safari.</li><li>Role e toque em <b>Adicionar à Tela de Início</b>.</li><li>Toque em <b>Adicionar</b>.</li></ol>'
+ +'<button type="button" class="lt-cs-btn prim" data-a="ok">Entendi</button><button type="button" class="lt-cs-btn link" data-a="nunca">Já instalei</button>');
+}
+box.addEventListener('click',e=>{const a=e.target.closest('[data-a]')?.dataset.a;if(!a)return;
+ if(a==='copiar')copiar();else if(a==='restaurar')restaurar();
+ else if(a==='depois'){s(K_SNOOZE,String(Date.now()));fechar()}
+ else if(a==='ok'){s(K_INST,String(Date.now()));fechar()}
+ else if(a==='nunca'){s(K_INST,'instalado');fechar()}
+ else fechar()});
+// Cópias feitas pela tela de Configurações também contam.
+document.addEventListener('click',e=>{if(e.target.closest('#lt-backup')){s(K_LAST,String(Date.now()));marcar()}},true);
+function marcar(){const b=document.getElementById('lt-cs-open');if(!b)return;const d=b.querySelector('.lt-cs-dot');const on=Date.now()-ultima()>DIAS_LEMBRETE*DIA;if(on&&!d)b.insertAdjacentHTML('beforeend','<span class="lt-cs-dot" aria-hidden="true"></span>');if(!on&&d)d.remove();b.setAttribute('aria-label',on?'Cópia de segurança (pendente)':'Cópia de segurança')}
+function botao(){
+ if(document.getElementById('lt-cs-open'))return;
+ const bar=document.querySelector('.pt-tools-actions');
+ const b=document.createElement('button');b.type='button';b.id='lt-cs-open';b.innerHTML=ico.nuvem;b.onclick=()=>telaCopia(false);
+ if(bar)bar.prepend(b);else{b.style.cssText='position:fixed;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:60;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid #ffffff26;background:#00000033;color:#dfbf88;backdrop-filter:blur(8px)';b.querySelector('svg').style.cssText='width:18px;height:18px';document.body.append(b)}
+ marcar();
+}
+window.addEventListener('load',()=>setTimeout(()=>{
+ botao();
+ if(ehIOS&&!instalado&&g(K_INST)!=='instalado'&&Date.now()-(Number(g(K_INST))||0)>14*DIA){setTimeout(telaInstalar,1500);return}
+ // Primeiro lembrete só 2 dias depois da estreia, para não incomodar no primeiro uso.
+ if(!g(K_LAST)&&!g(K_SNOOZE)){s(K_SNOOZE,String(Date.now()));return}
+ if(atrasada())setTimeout(()=>telaCopia(true),2000);
+},300));
+})();
+</script>
+
+</body>
 </html>
