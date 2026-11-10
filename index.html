@@ -97,7 +97,599 @@ const b64=u=>{let r='';for(let i=0;i<u.length;i+=0x8000)r+=String.fromCharCode.a
 const te=new TextEncoder(),td=new TextDecoder();
 const derive=async(pw,salt,iter)=>{const km=await crypto.subtle.importKey('raw',te.encode(pw),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},true,['encrypt','decrypt'])};
 const dec=async(key,iv,data)=>new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data));
-const abrirApp=async kraw=>{const K=await crypto.subtle.importKey('raw',kraw,'AES-GCM',false,['decrypt']);const h=td.decode(await dec(K,u8(D.ivp),u8(D.data)));if(document.readyState!=='complete')await new Promise(r=>addEventListener('load',r,{once:true}));await new Promise(r=>setTimeout(r,0));abrir(h)};
+async function montarExtensao(chave, demo=false) {
+  const key = demo ? null : await crypto.subtle.importKey('raw', chave, 'AES-GCM', false, ['encrypt','decrypt']);
+  const storage = 'life-trail-regiane:pessoal-gerencia:v1';
+  const cipherOptions = iv => ({name:'AES-GCM',iv,additionalData:new TextEncoder().encode(storage)});
+  const el = (tag, text) => Object.assign(document.createElement(tag), text === undefined ? {} : {textContent:text});
+  const today = () => demo ? '2026-11-10' : new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo'}).format(new Date());
+  const date = value => new Date(value+'T00:00:00Z');
+  const add = (value,days) => new Date(date(value).getTime()+days*86400000).toISOString().slice(0,10);
+  const valid = value => typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(+date(value)) && add(value,0)===value;
+  const fmt = value => value.split('-').reverse().join('/');
+  const brl = cents => (cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  let state = {periods:[],goals:{},sales:{},store:null};
+  let busy = false, locked = false;
+  try {
+    const saved=demo?null:localStorage.getItem(storage);
+    if(saved&&!demo){
+      const payload=JSON.parse(saved);
+      const bytes=await crypto.subtle.decrypt(cipherOptions(new Uint8Array(payload.iv)),key,new Uint8Array(payload.bytes));
+      state=JSON.parse(new TextDecoder().decode(bytes));
+    }
+  } catch { locked=true; }
+  if(demo){
+    state.periods=['2026-09-01','2026-09-29','2026-10-27'];
+    state.water={[today()]:4};
+    state.sales={'2026-11-04':532000,'2026-11-05':409000,'2026-11-06':471000,'2026-11-07':615000,'2026-11-08':375000,'2026-11-09':512000,'2026-11-10':368000};
+    state.goals={'Diária:2026-11-10':500000,'Semanal:2026-11-09':3200000,'Mensal:2026-11':11800000};
+    state.store={records:[
+      {kind:'store',id:'roster-store-22'},
+      {kind:'staff',name:'Pessoa A',role:'Gerente',status:'Ativa',start:'2024-06-03'},
+      {kind:'staff',name:'Pessoa B',role:'Vendedora',status:'Ativa',vacationDue:'2026-12-10'},
+      {kind:'staff',name:'Pessoa C',role:'Vendedora',status:'Em experiência',start:'2026-11-03',dataPending:'Completar cadastro'}
+    ]};
+  }
+  async function change(update){
+    if(busy || locked)return;
+    busy=true;
+    try{
+      const next=structuredClone(state);
+      update(next);
+      if(demo){
+        state=next;
+        render('Salvo durante esta demonstração.');
+        return;
+      }
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const bytes=await crypto.subtle.encrypt(cipherOptions(iv),key,new TextEncoder().encode(JSON.stringify(next)));
+      localStorage.setItem(storage,JSON.stringify({iv:[...iv],bytes:[...new Uint8Array(bytes)]}));
+      state=next;
+      render('Salvo neste aparelho.');
+    }catch{status.textContent='Não foi possível salvar. O registro anterior foi preservado.'}
+    finally{busy=false}
+  }
+  const panelCSS=`#lt-extra-launch{position:fixed;z-index:100;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));display:flex;gap:8px}
+#lt-extra-launch button,#lt-extra button{font:inherit;font-weight:650;cursor:pointer;border:1px solid #c5a7d43b;background:#30253a;color:#faf1ff;border-radius:13px;min-height:44px;padding:8px 13px}
+#lt-extra button:focus-visible,#lt-extra input:focus-visible,#lt-extra summary:focus-visible{outline:2px solid #f3d7a8;outline-offset:3px}
+#lt-extra{box-sizing:border-box;position:fixed;inset:0;margin:auto;width:min(100%,900px);max-width:100%;max-height:100dvh;height:100dvh;overflow:auto;border:0;border-radius:0;padding:0 0 env(safe-area-inset-bottom);color:#fcf5ff;background:#15111b;font:15px/1.45 system-ui;text-align:left;color-scheme:dark}
+#lt-extra::backdrop{background:#0c0814d9}
+#lt-extra *,#lt-extra *::before{box-sizing:border-box}
+#lt-extra .lt-top{position:sticky;top:0;z-index:2;padding:calc(12px + env(safe-area-inset-top)) 16px 10px;background:#17121ef5;border-bottom:1px solid #b98fcd2e}
+#lt-extra .lt-row{display:flex;justify-content:space-between;align-items:center;gap:10px;min-width:0}
+#lt-extra .lt-brand{color:#e5c694;font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:800}
+#lt-extra nav,#lt-extra .lt-segments,#lt-extra .lt-actions{display:flex;gap:7px}
+#lt-extra nav button,#lt-extra .lt-segments button,#lt-extra .lt-actions button{flex:1}
+#lt-extra nav button[aria-pressed=true],#lt-extra .lt-segments button[aria-pressed=true]{background:#4c3558;border-color:#cba2dd95}
+#lt-extra .lt-body{padding:16px;max-width:850px;margin:auto}
+#lt-extra .lt-demo{margin:0 0 10px;color:#e5c694;font-size:12px}
+#lt-extra h2,#lt-extra h3,#lt-extra p{margin:0}
+#lt-extra h2{font:600 clamp(29px,7vw,43px)/1.1 Georgia,serif;letter-spacing:-.025em;margin:4px 0 6px}
+#lt-extra h3{font-size:16px}
+#lt-extra small,#lt-extra .lt-muted{color:#cdbcd6;font-size:12px}
+#lt-extra .lt-hero,#lt-extra .lt-card{border:1px solid #b897cc36;border-radius:19px;padding:15px;margin:0 0 12px;background:#221a2b}
+#lt-extra .lt-hero{background:radial-gradient(ellipse at top right,#654968,transparent 75%),linear-gradient(130deg,#35253e,#201827)}
+#lt-extra .lt-kicker{color:#e5c694;font-weight:750;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+#lt-extra .lt-status{color:#f3d7a8;font-size:13px;margin:0 0 10px}
+#lt-extra .lt-status:empty{display:none}
+#lt-extra .lt-primary{background:linear-gradient(125deg,#f9e7c5,#ceaa80);color:#24182b;border-color:#f4dabc}
+#lt-extra .lt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+#lt-extra .lt-metric{display:grid;align-content:start;gap:3px;min-width:0;background:#160f20a0;border:1px solid #b795ce2c;border-radius:13px;padding:10px}
+#lt-extra .lt-metric b{font-size:clamp(15px,4vw,23px);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+#lt-extra .lt-ring{--pct:0%;width:108px;aspect-ratio:1;border-radius:50%;background:conic-gradient(#e8bcdf var(--pct),#45344e 0);display:grid;place-items:center;flex:none}
+#lt-extra .lt-ring>div{width:90px;aspect-ratio:1;border-radius:50%;display:grid;place-content:center;text-align:center;background:#251b30}
+#lt-extra .lt-ring strong{font:600 32px/1 Georgia,serif;color:#f3d7a8}
+#lt-extra .lt-cycle-head{justify-content:flex-start;margin:12px 0}
+#lt-extra .lt-track{display:flex;gap:2px;margin:14px 0 7px}
+#lt-extra .lt-track i{flex:1;height:12px;border-radius:3px;background:#493954}
+#lt-extra .lt-track .fertile{background:#c892d6}
+#lt-extra .lt-track .current{outline:2px solid #f8d8a8;outline-offset:1px}
+#lt-extra .lt-stack{display:grid;gap:8px;margin-top:10px}
+#lt-extra .lt-stack>div,#lt-extra details.lt-entry{padding:9px 0;border-bottom:1px solid #b897cc30}
+#lt-extra summary{cursor:pointer;min-height:44px;align-content:center}
+#lt-extra input{background:#191220;color:#fcf5ff;border:1px solid #c3a6d24f;border-radius:11px;padding:9px 10px;min-height:44px;min-width:0;width:100%;max-width:100%;font:inherit}
+#lt-extra label{display:grid;gap:4px;font-size:12px;color:#e6d6ef;min-width:0}
+#lt-extra form{display:grid;gap:8px;margin-top:10px}
+#lt-extra progress{width:100%;height:10px;accent-color:#d5a1df}
+#lt-extra .lt-chart{display:flex;align-items:end;gap:5px;height:105px;margin:12px 0}
+#lt-extra .lt-chart>span{flex:1;min-width:0;display:grid;align-items:end;grid-template-rows:80px auto;gap:3px;text-align:center}
+#lt-extra .lt-chart i{background:linear-gradient(#e0b6ea,#8b639f);border-radius:4px 4px 0 0}
+#lt-extra .lt-chart small{font-size:10px}
+#lt-extra dl{display:grid;grid-template-columns:minmax(90px,1fr) minmax(0,1.4fr);gap:7px;margin:8px 0;font-size:13px}
+#lt-extra dt{color:#d0bdda}#lt-extra dd{margin:0;overflow-wrap:anywhere}
+#lt-extra [hidden]{display:none!important}
+@media(min-width:700px){#lt-extra{height:min(94dvh,980px);border-radius:22px;border:1px solid #b897cc45}#lt-extra .lt-body{padding:22px}#lt-extra .lt-cols{display:grid;grid-template-columns:1.2fr 1fr;gap:12px;align-items:start}}
+#lt-extra .lt-body>div> .lt-segments{margin-bottom:12px}
+#lt-extra .lt-muted{margin-top:8px}
+#lt-extra button:disabled{opacity:.48;cursor:default}
+#lt-extra .lt-card>button{margin-top:10px}
+#lt-extra .lt-pill{display:inline-block;background:#4a3444;color:#f1ca98;padding:5px 8px;border-radius:8px;font-size:11px;letter-spacing:.1em;font-weight:750;white-space:nowrap}
+#lt-extra .lt-unit-name{font-size:22px;line-height:1.22;margin:10px 0 5px}
+#lt-extra .lt-wide{display:block;width:100%;text-align:left}
+#lt-extra .lt-line{display:flex;flex-wrap:wrap;gap:4px 8px;margin:9px 0;color:#e8d9ed;overflow-wrap:anywhere}
+#lt-extra .lt-accent{color:#f1ca98;margin:7px 0 12px}
+#lt-extra .lt-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#lt-extra .lt-tiles button{display:flex;align-items:center;gap:6px;min-height:58px;text-align:left;font-size:13px;padding:8px;overflow-wrap:anywhere}
+#lt-extra .lt-tiles button b{margin-left:auto;color:#f1ca98}
+#lt-extra .lt-symbol{color:#eac7ec;font-size:19px;flex:none}
+#lt-extra .lt-staff{display:grid;margin-top:6px}
+#lt-extra .lt-person{border:0;border-bottom:1px solid #c5a7d43b;border-radius:0;background:transparent;display:grid;grid-template-columns:36px minmax(0,1fr) 12px;align-items:center;gap:10px;padding:11px 0;text-align:left}
+#lt-extra .lt-person small{display:block}
+#lt-extra .lt-initial{width:36px;height:36px;display:grid;place-items:center;background:#42304e;border:1px solid #c5a7d43b;border-radius:10px}
+#lt-extra .lt-vacation{border-top:1px solid #c5a7d43b;padding:9px 0}
+#lt-extra .lt-vacation button{display:block;margin-top:8px}
+`;
+  const dialog=el('dialog');
+  dialog.id='lt-extra';
+  dialog.setAttribute('aria-labelledby','lt-extra-title');
+  const launch=el('div');
+  launch.id='lt-extra-launch';
+  const cls=(tag,name,text)=>Object.assign(el(tag,text),{className:name});
+  const button=(label,action,primary=false)=>{
+    const b=cls('button',primary?'lt-primary':'',label);
+    b.type='button';
+    b.onclick=action;
+    return b;
+  };
+  const card=(label,hero=false)=>{
+    const box=cls('section',hero?'lt-hero':'lt-card');
+    if(label)box.append(el('h3',label));
+    return box;
+  };
+  const row=(...items)=>{
+    const box=cls('div','lt-row');
+    box.append(...items);
+    return box;
+  };
+  const metric=(label,value)=>{
+    const box=cls('div','lt-metric');
+    box.append(el('small',label),el('b',value));
+    return box;
+  };
+  const grid=(...items)=>{
+    const box=cls('div','lt-grid');
+    box.append(...items);
+    return box;
+  };
+  const short=value=>fmt(value).slice(0,5);
+  const diff=(a,b)=>(date(b)-date(a))/86400000;
+  const status=cls('p','lt-status');
+  status.setAttribute('role','status');
+  const content=el('div');
+  const body=cls('main','lt-body');
+  const top=cls('header','lt-top');
+  const title=el('h2');
+  title.id='lt-extra-title';
+  const nav=el('nav');
+  nav.setAttribute('aria-label','Painéis Life Trail');
+  let view='cycle', selected=today(), scope=0, tab='unit', unitView='card', activePerson=null;
+  function open(page){
+    view=page;
+    render();
+    if(!dialog.open)dialog.showModal();
+    dialog.scrollTop=0;
+  }
+  for(const [page,label] of [['cycle','Cuidado pessoal'],['store','Gerência']]){
+    const tabButton=button(label,()=>open(page));
+    tabButton.dataset.view=page;
+    nav.append(tabButton);
+    launch.append(button(label,()=>open(page)));
+  }
+  const close=button('Fechar',()=>dialog.close());
+  const identity=cls('div','lt-brand','Life Trail · Regiane');
+  top.append(row(identity,close),title,nav);
+  if(demo)body.append(cls('p','lt-demo','Prévia interativa · registros e valores de exemplo'));
+  body.append(status,content);
+  dialog.append(top,body);
+  document.head.append(el('style',panelCSS));
+  document.body.append(launch,dialog);
+  function field(label,type,value,properties={}){
+    const wrapper=el('label',label),input=el('input');
+    Object.assign(input,{type,value,required:true},properties);
+    wrapper.append(input);
+    return [wrapper,input];
+  }
+  function editor(parent,label,fields,onSave){
+    const form=el('form'),submit=cls('button','lt-primary',label);
+    submit.type='submit';
+    form.append(...fields.map(x=>x[0]),submit);
+    parent.append(form);
+    form.onsubmit=e=>{
+      e.preventDefault();
+      if(!busy&&!locked)onSave(...fields.map(x=>x[1].value));
+    };
+    return form;
+  }
+  function segments(items,active,action){
+    const controls=cls('div','lt-segments');
+    items.forEach((label,i)=>{
+      const b=button(label,()=>action(i));
+      b.setAttribute('aria-pressed',String(i===active));
+      controls.append(b);
+    });
+    return controls;
+  }
+  function actions(...buttons){
+    const group=cls('div','lt-actions');
+    group.append(...buttons);
+    return group;
+  }
+  function cycle(){
+    const dates=[...state.periods].sort(), last=dates.at(-1), day=last?diff(last,today())+1:0;
+    const recent=dates.slice(-7);
+    const intervals=recent.slice(1).map((v,i)=>diff(recent[i],v));
+    const average=intervals.length>=2&&intervals.every(n=>n>=21&&n<=35)&&Math.max(...intervals)-Math.min(...intervals)<=7
+      ?Math.round(intervals.reduce((a,b)=>a+b,0)/intervals.length):0;
+    const next=average?add(last,average):null;
+    const fresh=next&&next>=today();
+    const fertileStart=fresh?add(next,-19):null, fertileEnd=fresh?add(next,-13):null;
+    const hero=card('Ciclo menstrual',true);
+    const ring=cls('div','lt-ring'), number=el('div');
+    ring.style.setProperty('--pct',fresh?Math.min(100,day/average*100)+'%':'0%');
+    number.append(el('small','Dia do ciclo'),el('strong',day||'—'),el('small',fresh?'de '+average+' dias':''));
+    ring.append(number);
+    const caption=el('div');
+    caption.append(cls('p','lt-kicker','Meu ciclo'),el('h3',fresh&&today()>=fertileStart&&today()<=fertileEnd?'Janela fértil estimada':last?'Acompanhe seu ciclo':'Seu primeiro registro'),el('small',last?'Último início · '+fmt(last):'Registre o primeiro dia da menstruação.'));
+    const summary=row(ring,caption);
+    summary.classList.add('lt-cycle-head');
+    hero.append(summary);
+    if(fresh){
+      const left=diff(today(),next);
+      hero.append(grid(metric('Próxima estimada',short(next)),metric('Janela fértil estimada',short(fertileStart)+'–'+short(fertileEnd)),metric('Até a próxima',left===0?'Hoje':left+' dias'),metric('Média recente',average+' dias')));
+      const track=cls('div','lt-track');
+      track.setAttribute('aria-hidden','true');
+      for(let i=0;i<average;i++){
+        const d=add(last,i), dot=el('i');
+        if(d>=fertileStart&&d<=fertileEnd)dot.classList.add('fertile');
+        if(d===today())dot.classList.add('current');
+        track.append(dot);
+      }
+      hero.append(track,el('small','Lilás · janela fértil estimada   |   Contorno · hoje'));
+    }else if(last){
+      hero.append(el('small',next?'Estimativa anterior encerrada. Registre um novo início.':'Estimativas disponíveis após três inícios com intervalos consistentes.'));
+    }
+    const record=card('Registrar menstruação');
+    function register(start){
+      if(!valid(start)||start>today())return;
+      if(dates.includes(start)){status.textContent='Essa data já está no histórico.';return}
+      change(n=>n.periods.push(start));
+    }
+    const form=editor(record,'Salvar data',[field('Primeiro dia','date',today(),{max:today()})],register);
+    form.hidden=true;
+    const other=button('Outro dia',()=>{
+      form.hidden=!form.hidden;
+      other.setAttribute('aria-expanded',String(!form.hidden));
+      if(!form.hidden)form.querySelector('input').focus();
+    });
+    other.setAttribute('aria-expanded','false');
+    const quick=actions(button('+ Começou hoje',()=>register(today()),true),other);
+    record.insertBefore(quick,form);
+    quick.style.marginTop='10px';
+    const history=card();
+    const disclosure=el('details');
+    disclosure.append(el('summary','Histórico de inícios ('+dates.length+')'));
+    const list=cls('div','lt-stack');
+    dates.slice().reverse().forEach((value,i)=>{
+      const text=el('div');
+      text.append(el('b',fmt(value)),el('br'),el('small',dates.length-i>1?diff(dates[dates.length-i-2],value)+' dias desde o anterior':'Primeiro registro'));
+      const remove=button('Excluir',()=>{if(confirm('Excluir o início de '+fmt(value)+'?'))change(n=>n.periods=n.periods.filter(d=>d!==value))});
+      remove.setAttribute('aria-label','Excluir '+fmt(value));
+      list.append(row(text,remove));
+    });
+    if(!dates.length)list.append(el('small','Histórico vazio.'));
+    disclosure.append(list);
+    history.append(disclosure);
+    const side=el('div');
+    side.append(record,history,el('small','Estimativas de calendário. A ovulação pode variar. Não use estas datas como método contraceptivo.'));
+    const columns=cls('div','lt-cols');
+    columns.append(hero,side);
+    content.append(columns,waterCard());
+  }
+  function waterCard(){
+    const box=card('Hidratação');
+    const key=today(), count=state.water?.[key]??0, goal=state.waterGoal??8;
+    const progress=el('progress');
+    progress.max=goal;
+    progress.value=Math.min(count,goal);
+    progress.setAttribute('aria-label','Copos de água registrados hoje');
+    function adjust(amount){
+      change(n=>{
+        n.water??={};
+        n.water[key]=Math.max(0,(n.water[key]??0)+amount);
+      });
+    }
+    const undo=button('Desfazer',()=>adjust(-1));
+    undo.disabled=!count;
+    box.append(grid(metric('Hoje',count+' copos'),metric('Meta pessoal',goal+' copos')),progress,
+      actions(button('+ Bebi um copo',()=>adjust(1),true),undo));
+    const settings=el('details');
+    settings.append(el('summary','Ajustar meta de água'));
+    editor(settings,'Salvar meta de água',[field('Copos por dia','number',goal,{min:'1',max:'30',step:'1'})],v=>change(n=>n.waterGoal=Number(v)));
+    box.append(settings);
+    return box;
+  }
+  function periods(value){
+    const week=add(value,-((date(value).getUTCDay()+6)%7)), month=value.slice(0,7);
+    const end=add(new Date(Date.UTC(date(value).getUTCFullYear(),date(value).getUTCMonth()+1,1)).toISOString().slice(0,10),-1);
+    return [['Diária',value,value,value],['Semanal',week,week,add(week,6)],['Mensal',month,month+'-01',end]];
+  }
+  function salesPanel(){
+    const [kind,id,first,last]=periods(selected)[scope];
+    const key=kind+':'+id,target=state.goals[key];
+    const entries=Object.entries(state.sales).filter(([d])=>d>=first&&d<=last).sort(([a],[b])=>a.localeCompare(b));
+    const total=entries.reduce((sum,[,v])=>sum+v,0);
+    const pct=target>0?Math.round(total/target*100):null;
+    const summary=card('Acompanhamento de metas',true);
+    const [dateLabel,dateField]=field('Data de referência','date',selected);
+    dateLabel.style.margin='10px 0';
+    dateField.onchange=()=>{if(valid(dateField.value)){selected=dateField.value;render()}};
+    summary.append(dateLabel,segments(['Dia','Semana','Mês'],scope,i=>{scope=i;render()}));
+    summary.append(grid(metric('Realizado',entries.length?brl(total):'—'),metric('Meta '+kind.toLowerCase(),target>0?brl(target):'—'),metric('Atingimento',pct===null?'—':pct+'%'),metric('Falta para a meta',target>0?brl(Math.max(0,target-total)):'—')));
+    if(target>0){
+      const progress=el('progress');
+      progress.max=100;
+      progress.value=Math.min(pct,100);
+      progress.setAttribute('aria-label','Atingimento da meta em porcentagem');
+      summary.append(progress);
+    }
+    summary.append(el('small',fmt(first)+(first===last?'':' a '+fmt(last))));
+    const entry=card('Lançamentos');
+    const options={min:'0',max:'999999999',step:'0.01'};
+    const cents=v=>Math.round(Number(v)*100);
+    const saleForm=editor(entry,'Salvar venda',[field('Total vendido no dia (R$)','number',state.sales[selected]===undefined?'':state.sales[selected]/100,options)],v=>change(n=>n.sales[selected]=cents(v)));
+    const goalForm=editor(entry,'Salvar meta',[field('Meta '+kind.toLowerCase()+' (R$)','number',target===undefined?'':target/100,{...options,min:'0.01'})],v=>change(n=>n.goals[key]=cents(v)));
+    function showForm(active){
+      for(const f of [saleForm,goalForm])f.hidden=f!==active||!f.hidden;
+      if(!active.hidden)active.querySelector('input').focus();
+    }
+    saleForm.hidden=goalForm.hidden=true;
+    const commands=actions(button(state.sales[selected]===undefined?'+ Venda':'Editar venda',()=>showForm(saleForm),true),button(target>0?'Editar meta':'Definir meta',()=>showForm(goalForm)));
+    commands.style.marginTop='10px';
+    entry.insertBefore(commands,saleForm);
+    entry.append(cls('p','lt-muted','A venda salva é o total do dia. Semana e mês somam os lançamentos diários.'));
+    const chartCard=card('Vendas no período');
+    if(entries.length){
+      const peak=Math.max(1,...entries.map(([,v])=>v));
+      const chart=cls('div','lt-chart');
+      for(const [d,v] of entries.slice(-7)){
+        const bar=el('span'),fill=el('i');
+        fill.style.height=Math.max(2,v/peak*75)+'px';
+        bar.title=fmt(d)+' · '+brl(v);
+        bar.append(fill,el('small',short(d)));
+        chart.append(bar);
+      }
+      chart.setAttribute('aria-hidden','true');
+      const history=el('details'),list=cls('div','lt-stack');
+      history.append(el('summary','Ver lançamentos ('+entries.length+')'));
+      for(const [d,v] of entries.slice().reverse())list.append(row(el('span',fmt(d)),el('b',brl(v))));
+      history.append(list);
+      chartCard.append(chart,history);
+    }else chartCard.append(el('small','Nenhum lançamento neste período.'));
+    const side=el('div'), columns=cls('div','lt-cols');
+    side.append(entry,chartCard);
+    columns.append(summary,side);
+    content.append(columns);
+  }
+  const team=()=>state.store?.records.filter(r=>r.kind==='person'||r.kind==='staff')??[];
+  const unit=()=>state.store?.records.find(r=>r.kind==='store');
+  const ops=()=>state.unitOps??{};
+  const patch=(update)=>change(n=>{n.unitOps??={};update(n.unitOps)});
+  function go(next){
+    unitView=next;
+    activePerson=null;
+    render();
+    dialog.scrollTop=0;
+  }
+  function line(parent,label,value){
+    const p=cls('p','lt-line');
+    p.append(el('span',label),el('b',value));
+    parent.append(p);
+  }
+  const dateValue=value=>valid(value)?fmt(value):'Não informado';
+  function unitCard(){
+    const data=ops(), pending=(data.pending??[]).filter(p=>!p.done), visits=data.visits??[];
+    const box=card(null,true);
+    const top=row(cls('span','lt-pill','LOJA 22'),el('small',state.store?(pending.length?pending.length+' pendência(s) aberta(s)':'Sem pendências abertas'):'Aguardando importação'));
+    box.append(top,cls('h3','lt-unit-name','Laranjeiras 1'),el('small','Regiane'));
+    const latest=visits.map(v=>v.date).sort().at(-1);
+    box.append(grid(metric('Equipe',state.store?team().length+' pessoas':'—'),metric('Última visita',latest?fmt(latest):'Sem registro')));
+    const openUnit=button('Abrir unidade  ›',()=>go('window'),true);
+    openUnit.classList.add('lt-wide');
+    box.append(openUnit);
+    return box;
+  }
+  function actionTile(label,icon,action,count){
+    const b=button('',action);
+    const mark=cls('span','lt-symbol',icon);
+    mark.setAttribute('aria-hidden','true');
+    b.append(mark,el('span',label));
+    if(count!==undefined)b.append(el('b',String(count)));
+    return b;
+  }
+  function unitWindow(){
+    const data=ops(), box=card(null,true);
+    const head=el('div');
+    head.append(cls('span','lt-pill','LOJA 22'),cls('h3','lt-unit-name','Laranjeiras 1'));
+    const close=button('×',()=>go('card'));
+    close.setAttribute('aria-label','Fechar unidade');
+    box.append(row(head,close),cls('p','lt-line',data.address||'Endereço sem cadastro'),cls('p','lt-accent',data.staffingNotes??unit()?.staffingNotes??''));
+    const tiles=cls('div','lt-tiles');
+    const pending=(data.pending??[]).filter(p=>!p.done).length;
+    tiles.append(
+      actionTile('Ver equipe','♙',()=>go('team'),state.store?team().length:'—'),
+      actionTile('Ver pendências','☷',()=>go('pending'),state.store?pending:'—'),
+      actionTile('Registrar visita','▦',()=>go('visit')),
+      actionTile('Registrar pendência','+',()=>go('new-pending')),
+      actionTile('Editar unidade','✎',()=>go('edit')),
+      actionTile('WhatsApp · Regiane','↗',()=>{
+        const number=(data.whatsapp||'').replace(/\D/g,'');
+        if(demo||!/^\d{12,15}$/.test(number)){
+          status.textContent=demo?'Atalho de demonstração.':'Cadastre o WhatsApp com DDI e DDD em Editar unidade.';
+          return;
+        }
+        window.open('https://wa.me/'+number,'_blank','noopener,noreferrer');
+      })
+    );
+    box.append(tiles);
+    content.append(box);
+    importStore();
+  }
+  function importStore(){
+    if(demo)return;
+    const box=cls('details','lt-card');
+    if(!state.store)box.open=true;
+    box.append(el('summary',state.store?'Gerenciar cópia privada':'Carregar dados da Loja 22'));
+    const file=el('input');
+    file.type='file';
+    file.accept='.json,application/json';
+    file.hidden=true;
+    file.setAttribute('aria-label','Arquivo da Loja 22');
+    file.onchange=async()=>{
+      try{
+        if(!file.files[0]||file.files[0].size>2e6)throw Error();
+        const x=JSON.parse(await file.files[0].text());
+        if(x.format!=='super-visao-loja-v1'||x.storeId!=='roster-store-22'||!Array.isArray(x.records)||
+          x.records.filter(r=>r.kind==='store'&&r.id===x.storeId).length!==1||
+          x.records.some(r=>r.kind==='store'?r.id!==x.storeId:!['person','staff'].includes(r.kind)||r.store!==x.storeId&&r.storeId!==x.storeId))throw Error();
+        if(state.store&&!confirm('Atualizar a cópia da equipe? Os lançamentos e acompanhamentos locais serão mantidos.'))return;
+        await change(n=>n.store=x);
+      }catch{status.textContent='Selecione o JSON privado da Loja 22.'}
+      finally{file.value=''}
+    };
+    box.append(button(state.store?'Atualizar cópia da Loja 22':'Importar cópia da Loja 22',()=>file.click(),true),file);
+    content.append(box);
+  }
+  function sectionWithBack(title,back='window'){
+    const box=card();
+    box.append(row(el('h3',title),button('‹ Voltar',()=>go(back))));
+    content.append(box);
+    return box;
+  }
+  function teamPanel(){
+    if(activePerson){personPanel(activePerson);return}
+    const box=sectionWithBack('Equipe · Loja 22'), people=team();
+    if(!state.store){box.append(el('small','Carregue a cópia privada para consultar a equipe.'));importStore();return}
+    const [label,search]=field('Buscar pessoa','search','',{required:false,placeholder:'Nome ou função'});
+    const list=cls('div','lt-staff');
+    box.append(label,cls('p','lt-line',people.length+' pessoas · '+people.filter(p=>!valid(p.start)&&!p.employmentType).length+' admissões pendentes'),list);
+    function show(){
+      list.replaceChildren();
+      const normalize=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const q=normalize(search.value.trim());
+      for(const person of people){
+        if(!normalize([person.name,person.fullName,person.role,person.status].join(' ')).includes(q))continue;
+        const b=button('',()=>{activePerson=person;render();dialog.scrollTop=0});
+        b.classList.add('lt-person');
+        const text=el('span');
+        text.append(el('b',person.name),el('small',[person.role,person.employmentType,'Loja 22 · Laranjeiras 1'].filter(Boolean).join(' · ')));
+        b.append(cls('span','lt-initial',person.name.slice(0,1)),text,el('span','›'));
+        list.append(b);
+      }
+      if(!list.children.length)list.append(el('small','Nenhuma pessoa encontrada.'));
+    }
+    search.oninput=show;
+    show();
+  }
+  function personPanel(person){
+    const box=sectionWithBack('Ficha da equipe','team'), data=ops();
+    box.append(cls('h3','lt-unit-name',person.fullName||person.name));
+    line(box,'Função',person.role||'Não informada');
+    line(box,'Admissão',dateValue(person.start));
+    if(valid(person.start)){
+      const now=today(), years=Math.max(0,Number(now.slice(0,4))-Number(person.start.slice(0,4))-Number(now.slice(5)<person.start.slice(5)));
+      line(box,'Tempo de casa',years+' ano(s) completo(s)');
+    }
+    line(box,'Aniversário',person.birthdayMonthDay?.split('-').reverse().join('/')||'Não informado');
+    if(person.experienceScore!=null)line(box,'Nota de experiência',String(person.experienceScore).replace('.',',')+'/10');
+    const exp=card('Experiência'), experience=person.experiencePeriods??[];
+    if(experience.length){
+      experience.forEach((v,i)=>line(exp,(i+1)+'º período',dateValue(v.start)+' até '+dateValue(v.end)));
+      const closed=data.experience?.[person.id]??Boolean(person.experienceClosed);
+      exp.append(el('small',closed?'Experiência marcada como encerrada':'Em acompanhamento'));
+      exp.append(button(closed?'Reabrir acompanhamento':'Marcar experiência como encerrada',()=>patch(n=>{n.experience??={};n.experience[person.id]=!closed})));
+    }else exp.append(el('small',person.employmentType==='Freelancer'?'Vínculo freelancer':'Períodos de experiência não informados.'));
+    const vacation=card('Férias'), periods=person.vacationPeriods??[];
+    line(vacation,'Vencto. no relatório',dateValue(person.vacationDue));
+    for(const period of periods){
+      const key=[person.id,period.start,period.end].join(':');
+      const done=Boolean(data.vacations?.[key]);
+      const entry=cls('div','lt-vacation');
+      line(entry,'Período aquisitivo',dateValue(period.start)+' a '+dateValue(period.end));
+      line(entry,'Limite para gozo',dateValue(period.limit));
+      entry.append(el('small',done?'Regularizado':'Pendente de acompanhamento'));
+      entry.append(button(done?'Reabrir acompanhamento':'Marcar período regularizado',()=>patch(n=>{n.vacations??={};n.vacations[key]=!done})));
+      vacation.append(entry);
+    }
+    if(person.sourcePage)vacation.append(el('small','Fonte: Programação de Férias · página '+person.sourcePage+' · base 05/11/2026'));
+    content.append(exp,vacation);
+  }
+  function operationsPanel(){
+    const data=ops();
+    if(unitView==='pending'){
+      const box=sectionWithBack('Pendências da Loja 22'), pending=data.pending??[];
+      box.append(button('+ Registrar pendência',()=>go('new-pending'),true));
+      if(!pending.length)box.append(cls('p','lt-line','Nenhuma pendência registrada.'));
+      pending.forEach((item,i)=>{
+        const itemCard=card(item.title);
+        line(itemCard,'Registrada em',fmt(item.date));
+        if(item.note)itemCard.append(cls('p','lt-line',item.note));
+        itemCard.append(button(item.done?'Reabrir pendência':'Concluir pendência',()=>patch(n=>{n.pending[i].done=!item.done})));
+        box.append(itemCard);
+      });
+      return;
+    }
+    if(unitView==='visit'){
+      const box=sectionWithBack('Registrar visita');
+      editor(box,'Salvar visita',[field('Data da visita','date',today(),{max:today()}),field('Observações','text','',{required:false,maxLength:300})],(date,note)=>{
+        if(!valid(date)||date>today())return;
+        patch(n=>{n.visits??=[];n.visits.push({date,note:note.trim()})});
+      });
+      for(const v of (data.visits??[]).slice().reverse())line(box,fmt(v.date),v.note||'Visita registrada');
+      return;
+    }
+    if(unitView==='new-pending'){
+      const box=sectionWithBack('Registrar pendência','pending');
+      editor(box,'Salvar pendência',[field('Título','text','',{maxLength:100}),field('Observações','text','',{required:false,maxLength:300})],(title,note)=>{
+        if(!title.trim())return;
+        unitView='pending';
+        patch(n=>{n.pending??=[];n.pending.push({title:title.trim(),note:note.trim(),date:today(),done:false})});
+      });
+      return;
+    }
+    const box=sectionWithBack('Editar unidade');
+    const optional={required:false,maxLength:150};
+    editor(box,'Salvar unidade',[
+      field('Endereço','text',data.address??'',optional),
+      field('Quadro da loja','text',data.staffingNotes??unit()?.staffingNotes??'',optional),
+      field('WhatsApp da Regiane com DDI e DDD','tel',data.whatsapp??'',{required:false,maxLength:24})
+    ],(address,staffingNotes,whatsapp)=>{
+      const number=whatsapp.replace(/\D/g,'');
+      if(whatsapp.trim()&&!/^\d{12,15}$/.test(number)){status.textContent='Informe o telefone com DDI e DDD.';return}
+      unitView='window';
+      patch(n=>Object.assign(n,{address:address.trim(),staffingNotes:staffingNotes.trim(),whatsapp:number}));
+    });
+  }
+  function management(){
+    content.append(segments(['Unidade','Vendas e metas'],tab==='unit'?0:1,i=>{tab=i===0?'unit':'sales';go('card')}));
+    if(tab==='sales'){salesPanel();return}
+    if(unitView==='card'){content.append(unitCard());return}
+    if(unitView==='window'){unitWindow();return}
+    if(unitView==='team'){teamPanel();return}
+    operationsPanel();
+  }
+
+  function render(message=''){
+    title.textContent=view==='cycle'?'Cuidar de mim':'Gerência';
+    for(const b of nav.children)b.setAttribute('aria-pressed',String(b.dataset.view===view));
+    status.textContent=message;
+    content.replaceChildren();
+    if(locked){status.textContent='Os registros foram preservados. Abra o painel com a chave original.';return}
+    if(view==='cycle')cycle();else management();
+  }
+  if(demo){close.hidden=true;dialog.addEventListener('cancel',e=>e.preventDefault());open('cycle')}
+}
+
+const abrirApp=async kraw=>{const K=await crypto.subtle.importKey('raw',kraw,'AES-GCM',false,['decrypt']);const h=td.decode(await dec(K,u8(D.ivp),u8(D.data)));if(document.readyState!=='complete')await new Promise(r=>addEventListener('load',r,{once:true}));await new Promise(r=>setTimeout(r,0));abrir(h);montarExtensao(kraw).catch(console.error)};
 const abrir=h=>{document.open();document.write(h);document.close()};
 const show=id=>{['v-login','v-code','v-new'].forEach(x=>{$(x).hidden=x!==id});$('m').textContent='';const f=$(id).querySelector('input:not([hidden])');if(f&&!/iPhone|iPad/.test(navigator.userAgent))f.focus()};
 const vault=()=>{try{return JSON.parse(localStorage.getItem(VK))}catch(e){return null}};
