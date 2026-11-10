@@ -1,0 +1,61 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-NN4lKfleuawI/0efcE0z2pjITLy+PR6QZ76FvSzGq1c='; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preparar carga da Loja 22</title>
+<style>
+body{background:#17121e;color:#fcf5ff;font:16px system-ui;margin:0;padding:24px}
+main{max-width:450px;margin:10vh auto;background:#30253a;border:1px solid #705780;padding:24px;border-radius:20px}
+h1{margin:0;color:#f1ca98;font-size:25px}label,input,button{display:block;width:100%;box-sizing:border-box}
+input,button{font:inherit;padding:13px;border-radius:10px;margin:8px 0 12px}
+input{border:1px solid #b69ac7;background:#18121f;color:white}button{background:#f1ca98;color:#211825;border:0;font-weight:bold}
+p{line-height:1.45}small{color:#d5bfdc}
+</style>
+<main><h1>Preparar carga da Loja 22</h1>
+<p>Para uso do Arnold. Use o código original de ativação do Life Trail da Regiane. O código fica neste navegador durante o preparo.</p>
+<form id="prepare"><label for="store">Arquivo Laranjeiras-1.json</label><input id="store" type="file" accept=".json,application/json" required><label for="activation">Código original de ativação</label><input id="activation" type="password" autocomplete="off" required>
+<button id="submit" type="submit">Gerar arquivo cifrado</button></form>
+<p id="result" role="status"></p>
+<small>Anexe aqui na conversa somente o arquivo cifrado que for baixado.</small></main>
+<script>
+const vault={"salt": "tGjOzz/hcOdKVc0xAxeZ3g==", "iv": "hBkuELYNWkVq53Sd", "iter": 600000, "wrap": "qjBdUmrFUhOzaXTf15LTgkqOqqovZulxA6TDzU6rZAT4naEmzjP0Y5ZjAGcu9aiB"};
+const encode=new TextEncoder();
+const bytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const base64=arr=>btoa(String.fromCharCode(...new Uint8Array(arr)));
+const input=document.querySelector('#activation'), result=document.querySelector('#result'), submit=document.querySelector('#submit');
+document.querySelector('#prepare').onsubmit=async event=>{
+  event.preventDefault();
+  if(!globalThis.crypto?.subtle){result.textContent='Abra esta página diretamente no Safari ou Chrome.';return}
+  const file=document.querySelector('#store').files[0];
+  let seed;
+  try {
+    if(!file||file.size>200000)throw Error();
+    seed=await file.text();
+    const copy=JSON.parse(seed);
+    const id='roster-store-22';
+    if(copy.format!=='super-visao-loja-v1'||copy.storeId!==id||!Array.isArray(copy.records)||
+      copy.records.filter(r=>r.kind==='store'&&r.id===id).length!==1||
+      copy.records.some(r=>r.kind==='store'?r.id!==id:r.kind!=='person'||r.store!==id))throw Error();
+  }catch{result.textContent='Selecione o arquivo privado Laranjeiras-1.json.';return}
+  submit.disabled=true;
+  result.textContent='Preparando…';
+  try{
+    const source=await crypto.subtle.importKey('raw',encode.encode(input.value.trim()),'PBKDF2',false,['deriveKey']);
+    input.value='';
+    const unlock=await crypto.subtle.deriveKey({name:'PBKDF2',salt:bytes(vault.salt),iterations:vault.iter,hash:'SHA-256'},source,{name:'AES-GCM',length:256},false,['decrypt']);
+    const key=await crypto.subtle.importKey('raw',await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(vault.iv)},unlock,bytes(vault.wrap)),{name:'AES-GCM'},false,['encrypt']);
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encode.encode('life-trail-regiane:loja22:seed:v1')},key,encode.encode(seed));
+    const url=URL.createObjectURL(new Blob([JSON.stringify({iv:base64(iv),bytes:base64(encrypted)})],{type:'application/json'}));
+    const link=document.createElement('a');
+    link.href=url;
+    link.download='regiane-seed-encrypted.json';
+    link.textContent='Baixar carga cifrada';
+    result.replaceChildren(link);
+    link.click();
+  }catch{
+    input.value='';
+    result.textContent='O código não abriu o cofre oficial. Confira o código original de ativação.';
+  }finally{submit.disabled=false}
+};
+</script></html>
